@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FinSight AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<script src="/static/theme.js"></script>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<div class="signin" id="signin" hidden>
+  <button class="icon-btn theme-toggle signin-theme" aria-label="Switch theme"></button>
+  <div class="card">
+    <div class="logo">F</div>
+    <h1 style="font-size:1.4rem">FinSight AI</h1>
+    <p class="sub">Your personal finance &amp; portfolio intelligence.</p>
+    <button class="btn" id="signin-btn" style="width:100%;justify-content:center;margin-top:10px">Sign in with Google</button>
+    <div class="sub" id="signin-status" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand"><div class="logo">F</div><span>FinSight</span></div>
+      <nav class="tabs" role="tablist" aria-label="Sections">
+        <button class="tab" role="tab" data-tab="overview">Overview</button>
+        <button class="tab" role="tab" data-tab="investments">Investments</button>
+        <button class="tab" role="tab" data-tab="markets">Markets</button>
+        <button class="tab" role="tab" data-tab="transactions">Transactions</button>
+        <button class="tab" role="tab" data-tab="documents">Documents</button>
+        <button class="tab" role="tab" data-tab="settings">Settings</button>
+      </nav>
+      <div class="top-actions">
+        <button class="icon-btn" id="help-btn" aria-label="Help &amp; resources" title="Help &amp; resources (?)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </button>
+        <button class="icon-btn theme-toggle" aria-label="Switch theme"></button>
+        <button class="icon-btn" id="bell" aria-label="Notifications" aria-haspopup="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="dot" id="bell-count" hidden>0</span>
+        </button>
+        <span class="user-chip" id="who"></span>
+      </div>
+    </div>
+    <div class="popover" id="notif-panel" hidden>
+      <div class="popover-head"><b>Notifications</b><button class="btn ghost sm" id="read-all">Mark all read</button></div>
+      <div id="notif-list"><div class="empty">No notifications yet.</div></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section data-panel="overview">
+      <div class="page-head">
+        <div><h1>Overview</h1><div class="sub" id="ov-coverage">Your money at a glance</div></div>
+        <form class="toolbar range-form">
+          <input type="date" name="start" aria-label="From"><input type="date" name="end" aria-label="To">
+          <button class="btn ghost sm">Apply</button><button type="button" class="btn ghost sm range-clear">All time</button>
+        </form>
+      </div>
+      <div class="grid cols-4">
+        <div class="card kpi"><div class="label">Income</div><div class="value" id="k-income">–</div><div class="hint">Excl. transfers &amp; refunds</div></div>
+        <div class="card kpi"><div class="label">Spending</div><div class="value" id="k-spend">–</div><div class="hint">Excl. investments &amp; own transfers</div></div>
+        <div class="card kpi"><div class="label">Savings rate</div><div class="value" id="k-rate">–</div><div class="hint" id="k-invest">–</div></div>
+        <div class="card kpi"><div class="label">Portfolio (live)</div><div class="value" id="k-port">–</div><div class="hint" id="k-port-hint">Delayed market prices</div></div>
+      </div>
+      <div class="card review-hero" style="margin-top:16px" id="review-card">
+        <div class="eyebrow">Weekly AI portfolio review</div>
+        <h2 id="rv-headline">No review yet</h2>
+        <p class="sub" id="rv-summary" style="margin:0 0 12px">Import a holdings statement or add a holding, then generate your first review.</p>
+        <div class="toolbar"><button class="btn" id="rv-open" hidden>Read full review</button><button class="btn ghost" id="rv-run">Run review now</button><span class="sub" id="rv-when"></span></div>
+      </div>
+      <div class="grid cols-3" style="margin-top:16px">
+        <div class="card">
+          <div class="card-head"><h2>Income vs spending</h2><div class="legend"><span><i style="background:var(--series-1)"></i>Income</span><span><i style="background:var(--series-2)"></i>Spending</span></div></div>
+          <div class="chart" id="monthly"></div>
+          <details><summary class="sub" style="cursor:pointer;margin-top:8px">Show as table</summary><div class="table-wrap" id="monthly-table"></div></details>
+        </div>
+        <div class="card"><div class="card-head"><h2>Spending by category</h2></div><div id="categories"><div class="empty">No spending data.</div></div><div class="sub" id="cat-note"></div></div>
+      </div>
+      <div class="card" style="margin-top:16px"><div class="card-head"><h2>Recurring payments</h2></div><div class="table-wrap" id="recurring"><div class="empty">None detected.</div></div></div>
+    </section>
+
+    <!-- INVESTMENTS -->
+    <section data-panel="investments" hidden>
+      <div class="page-head">
+        <div><h1>Investments</h1><div class="sub" id="lp-source"></div></div>
+        <form class="toolbar" id="quote-form"><input name="q" placeholder="Look up a stock: HDFCBANK, TCS…" maxlength="60" required><button class="btn sm">Quote</button></form>
+      </div>
+      <div class="card" id="quote-card" hidden></div>
+      <div class="grid cols-4" style="margin-top:16px" id="lp-kpis">
+        <div class="card kpi"><div class="label">Market value</div><div class="value" id="lp-total">–</div><div class="hint" id="lp-time"></div></div>
+        <div class="card kpi"><div class="label">Today</div><div class="value" id="lp-day">–</div><div class="hint">Change in value</div></div>
+        <div class="card kpi"><div class="label">Unrealized P&amp;L</div><div class="value" id="lp-pnl">–</div><div class="hint" id="lp-cov"></div></div>
+        <div class="card kpi"><div class="label">Largest position</div><div class="value" id="lp-conc">–</div><div class="hint" id="lp-npos"></div></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>Holdings at market prices</h2><button class="btn ghost sm" id="lp-refresh">Refresh prices</button></div>
+        <div class="table-wrap" id="lp-table"><div class="empty">No holdings yet. Import a holdings statement in Documents or add one below.</div></div>
+        <ul class="sub" id="lp-warnings"></ul>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>Performance</h2><span class="sub">From broker P&amp;L reports + current prices</span></div>
+        <div id="perf"><div class="empty">Import a broker P&amp;L report (e.g. Groww "Stocks P&amp;L Report") to see realised P&amp;L, charges and XIRR.</div></div>
+      </div>
+      <div class="grid cols-2" style="margin-top:16px">
+        <div class="card"><div class="card-head"><h2>Broker cash flows</h2></div><div class="table-wrap" id="inv-flows"><div class="empty">No broker fund ledgers imported.</div></div></div>
+        <div class="card"><div class="card-head"><h2>Mutual fund orders</h2></div><div class="table-wrap" id="inv-mf"><div class="empty">No mutual fund orders imported.</div></div></div>
+      </div>
+      <div class="grid cols-2" style="margin-top:16px">
+        <div class="card">
+          <div class="card-head"><h2>Statement holdings (as reported)</h2></div>
+          <div class="table-wrap" id="inv-holdings"><div class="empty">No holdings statements imported.</div></div>
+          <ul class="sub" id="inv-warnings"></ul>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Add a holding / cost basis</h2></div>
+          <p class="sub" style="margin-top:0">Statements don't include purchase prices. Add your average cost here to see P&amp;L.</p>
+          <form id="holding" class="grid cols-2" style="gap:0 12px">
+            <div><label>Broker</label><input name="broker" placeholder="INDmoney" required style="width:100%"></div>
+            <div><label>Symbol</label><input name="symbol" placeholder="IDEA" required style="width:100%"></div>
+            <div><label>Quantity</label><input name="quantity" type="number" step="any" min="0.000001" required style="width:100%"></div>
+            <div><label>Average cost (INR)</label><input name="avg_cost" type="number" step="any" min="0" required style="width:100%"></div>
+            <div style="grid-column:1/-1;margin-top:12px"><button class="btn">Save holding</button> <span class="sub" id="holding-status"></span></div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- MARKETS -->
+    <section data-panel="markets" hidden>
+      <div class="page-head"><div><h1>Markets</h1><div class="sub">Institutional money flows and the NIFTY 50</div></div></div>
+      <div class="grid cols-4">
+        <div class="card kpi"><div class="label">NIFTY 50</div><div class="value" id="mk-nifty">–</div><div class="hint" id="mk-nifty-day">–</div></div>
+        <div class="card kpi"><div class="label">NIFTY 1-year return</div><div class="value" id="mk-nifty-1y">–</div><div class="hint" id="mk-nifty-trend">–</div></div>
+        <div class="card kpi"><div class="label">FII / FPI net (latest)</div><div class="value" id="mk-fii">–</div><div class="hint" id="mk-date">INR crore</div></div>
+        <div class="card kpi"><div class="label">DII net (latest)</div><div class="value" id="mk-dii">–</div><div class="hint">INR crore</div></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <div><h2>NIFTY 50</h2><div class="sub" id="nifty-source"></div></div>
+          <div class="seg" id="nifty-range" role="group" aria-label="Range"><button data-v="1mo" aria-pressed="false">1M</button><button data-v="6mo" aria-pressed="false">6M</button><button data-v="1y" aria-pressed="true">1Y</button><button data-v="5y" aria-pressed="false">5Y</button></div>
+        </div>
+        <div class="chart" id="nifty-chart"></div>
+        <div class="stat-row" id="nifty-stats"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">
+          <div><h2>FII &amp; DII net flows</h2><div class="sub">Cash market, INR crore · positive = net buying</div></div>
+          <div class="toolbar">
+            <div class="seg" id="flow-view" role="group" aria-label="Period"><button data-v="daily" aria-pressed="true">Daily</button><button data-v="monthly" aria-pressed="false">Monthly</button></div>
+            <select id="flow-days" aria-label="Days"><option value="30">30 days</option><option value="90" selected>90 days</option><option value="365">1 year</option></select>
+          </div>
+        </div>
+        <div class="legend" style="margin-bottom:6px"><span><i style="background:var(--series-1)"></i>FII / FPI</span><span><i style="background:var(--series-2)"></i>DII</span></div>
+        <div class="chart" id="flows-chart"></div>
+        <details><summary class="sub" style="cursor:pointer;margin-top:8px">Show as table</summary><div class="table-wrap" id="flows-table"></div></details>
+        <div class="toolbar" style="margin-top:12px;justify-content:space-between">
+          <span class="sub" id="flows-note"></span>
+          <label class="btn ghost sm" style="margin:0">Import history (CSV)<input type="file" id="flows-csv" accept=".csv,text/csv" hidden></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRANSACTIONS -->
+    <section data-panel="transactions" hidden>
+      <div class="page-head">
+        <div><h1>Transactions</h1><div class="sub" id="tx-meta"></div></div>
+        <form class="toolbar range-form">
+          <input type="date" name="start" aria-label="From"><input type="date" name="end" aria-label="To">
+          <button class="btn ghost sm">Apply</button><button type="button" class="btn ghost sm range-clear">All time</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="toolbar" style="margin-bottom:12px">
+          <input id="tx-search" placeholder="Search description…" maxlength="60" style="flex:1;min-width:180px">
+          <label class="check"><input type="checkbox" id="tx-review"> Needs review</label>
+          <label class="check"><input type="checkbox" id="tx-merchant" checked> Edits apply to merchant</label>
+        </div>
+        <div class="table-wrap" id="transactions"><div class="empty">No transactions.</div></div>
+      </div>
+    </section>
+
+    <!-- DOCUMENTS -->
+    <section data-panel="documents" hidden>
+      <div class="page-head"><div><h1>Documents</h1><div class="sub">Bank statements, holdings statements and broker exports.</div></div></div>
+      <div class="grid cols-2">
+        <div class="card">
+          <div class="card-head"><h2>Upload</h2></div>
+          <form id="upload">
+            <label for="u-cat">Document type</label>
+            <select name="category" id="u-cat" style="width:100%"><option value="bank">Bank statement (PDF)</option><option value="investment">Investment report (holdings PDF, broker Excel/CSV)</option></select>
+            <div id="u-platform-wrap" hidden>
+              <label for="u-platform">Platform</label>
+              <select name="platform" id="u-platform" style="width:100%"><option value="auto">Detect automatically</option><option value="GROWW">Groww</option><option value="ZERODHA">Zerodha</option><option value="INDMONEY">INDmoney</option></select>
+            </div>
+            <label>File</label>
+            <div class="dropzone"><input name="file" type="file" accept="application/pdf,.pdf,.xlsx,.csv" multiple required></div>
+            <label class="check" style="margin-top:12px;align-items:flex-start"><input type="checkbox" name="local_only" value="true" style="margin-top:3px">
+              <span class="sub">Local only — don't send this document to OpenAI or Pinecone (no chat search over it). Spreadsheets are always local.</span></label>
+            <div style="margin-top:14px"><button class="btn">Upload &amp; import</button></div>
+          </form>
+          <div class="sub" id="upload-status" style="margin-top:12px;white-space:pre-wrap"></div>
+        </div>
+        <div class="card"><div class="card-head"><h2>Imports &amp; reconciliation</h2></div><div id="imports"><div class="empty">Nothing imported yet.</div></div></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section data-panel="settings" hidden>
+      <div class="page-head"><div><h1>Settings</h1><div class="sub">Alerts, weekly review and email delivery.</div></div></div>
+      <div class="grid cols-2">
+        <div class="card">
+          <div class="card-head"><h2>Notifications</h2></div>
+          <form id="settings-form">
+            <div class="switch-row"><div><b>Weekly portfolio review</b><div class="sub" id="st-weekly-when"></div></div><input type="checkbox" name="weekly_review_enabled"></div>
+            <div class="switch-row"><div><b>Big price move alerts</b><div class="sub">After market close, Mon–Fri</div></div><input type="checkbox" name="price_alerts_enabled"></div>
+            <div class="switch-row"><div><b>Alert threshold</b><div class="sub">Daily move that triggers an alert</div></div><span><input type="number" name="price_move_threshold_pct" min="1" max="25" step="0.5" style="width:80px"> %</span></div>
+            <div class="switch-row"><div><b>Email me</b><div class="sub" id="st-email"></div></div><input type="checkbox" name="email_enabled"></div>
+            <div style="margin-top:14px"><button class="btn">Save settings</button> <span class="sub" id="st-status"></span></div>
+          </form>
+        </div>
+        <div class="card stack">
+          <div><div class="card-head"><h2>Appearance</h2></div>
+            <div class="switch-row"><div><b>Theme</b><div class="sub">Saved in this browser</div></div>
+              <div class="seg" id="theme-seg" role="group" aria-label="Theme"><button data-v="system" aria-pressed="true">System</button><button data-v="light" aria-pressed="false">Light</button><button data-v="dark" aria-pressed="false">Dark</button></div></div></div>
+          <div><div class="card-head"><h2>Status</h2></div><div id="st-system" class="sub"></div></div>
+          <div><h3>Test it</h3><p class="sub">Generates a review now (uses OpenAI and market data), adds a notification, and emails it if email is set up.</p><button class="btn" id="st-run">Run review now</button></div>
+          <div><h3>Documents setup</h3><p class="sub">Re-open the guided setup to add bank statements and investment reports in one go.</p><button class="btn ghost" id="st-onboard">Run setup again</button></div>
+          <div><h3>Help &amp; resources</h3><p class="sub">How to use FinSight, supported documents, and what each feature does.</p><button class="btn ghost" id="st-help">Open help</button></div>
+          <div><h3>Account</h3><p class="sub" id="st-account"></p><button class="btn ghost" id="signout" hidden>Sign out</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Floating assistant (available on every tab) -->
+<button class="chat-launcher" id="chat-launcher" aria-label="Open FinSight assistant" aria-controls="chat-widget" aria-expanded="false" hidden>
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+</button>
+<section class="chat-widget" id="chat-widget" role="dialog" aria-label="FinSight assistant" hidden>
+  <header class="cw-head">
+    <div class="cw-title"><div class="logo">F</div><div><b>FinSight assistant</b><div class="sub">Your records · live market data · documents</div></div></div>
+    <div class="cw-actions">
+      <button class="icon-btn sm" id="cw-clear" title="New conversation" aria-label="New conversation">↺</button>
+      <button class="icon-btn sm" id="cw-expand" title="Expand" aria-label="Expand">⤢</button>
+      <button class="icon-btn sm" id="cw-close" title="Close" aria-label="Close">✕</button>
+    </div>
+  </header>
+  <div class="cw-mode">
+    <select id="mode" aria-label="Mode"><option value="agent">Agent with tools (exact numbers + market data)</option><option value="rag">Document search (RAG)</option></select>
+  </div>
+  <div id="messages">
+    <div class="msg bot">Hi! Ask me about your spending, portfolio, or any NSE/BSE stock. I'll use your records and live (delayed) market data.</div>
+  </div>
+  <div class="chips" id="suggestions">
+    <button class="chip">How is my portfolio doing today?</button>
+    <button class="chip">Should I be worried about my largest holding?</button>
+    <button class="chip">What's my XIRR and realised P&amp;L?</button>
+    <button class="chip">How much did I spend on rent this year?</button>
+    <button class="chip">Analyze HDFC Bank's recent trend</button>
+  </div>
+  <form class="composer" id="chat"><textarea id="question" placeholder="Ask anything… (Enter to send)" rows="1" required></textarea><button class="btn" aria-label="Send">Send</button></form>
+</section>
+
+<!-- First-login onboarding -->
+<dialog id="onboard" class="onboard" aria-labelledby="ob-title">
+  <div class="modal-head">
+    <div><div class="sub" id="ob-step-label"></div><h2 id="ob-title" style="font-size:1.2rem;margin-top:2px"></h2></div>
+    <button class="btn ghost sm" id="ob-skip">Skip for now</button>
+  </div>
+  <div class="modal-body">
+    <div class="ob-progress"><i id="ob-bar"></i></div>
+    <div data-step="1">
+      <p>Let's bring in your documents so FinSight can show real numbers from day one. You can add more any time from the <b>Documents</b> tab.</p>
+      <div class="ob-list">
+        <div><b>Bank statements</b><span class="sub">PDF · income, spending, savings, recurring payments</span></div>
+        <div><b>Holdings statements</b><span class="sub">Groww Excel, INDmoney/CDSL PDF · what you own and its cost</span></div>
+        <div><b>P&amp;L reports</b><span class="sub">Groww Excel · realised P&amp;L, charges, XIRR</span></div>
+        <div><b>Fund ledgers &amp; MF orders</b><span class="sub">Groww Excel · money in/out of your broker</span></div>
+      </div>
+      <label class="check" style="margin-top:16px;align-items:flex-start"><input type="checkbox" id="ob-local" style="margin-top:3px">
+        <span class="sub">Keep PDFs local only — don't send them to OpenAI/Pinecone (they won't be searchable in chat). Excel files always stay local.</span></label>
+    </div>
+    <div data-step="2" hidden>
+      <p class="sub">Unlocked, text-based PDFs from net banking. Add several months if you have them — overlapping statements are de-duplicated.</p>
+      <div class="dropzone ob-drop" data-category="bank" data-accept=".pdf">
+        <b>Drop bank statement PDFs here</b><div class="sub">or <span class="link">browse files</span></div>
+        <input type="file" accept="application/pdf,.pdf" multiple hidden>
+      </div>
+      <div class="ob-files" id="ob-files-bank"></div>
+    </div>
+    <div data-step="3" hidden>
+      <p class="sub">Holdings statements, P&amp;L reports, fund ledgers and MF order history. Tip: upload the holdings statement and P&amp;L report from the same day to get XIRR.</p>
+      <label for="ob-platform">Platform</label>
+      <select id="ob-platform"><option value="auto">Detect automatically</option><option value="GROWW">Groww</option><option value="ZERODHA">Zerodha</option><option value="INDMONEY">INDmoney</option></select>
+      <div class="dropzone ob-drop" data-category="investment" data-accept=".pdf,.xlsx,.csv" style="margin-top:12px">
+        <b>Drop investment reports here</b><div class="sub">PDF, .xlsx or .csv · or <span class="link">browse files</span></div>
+        <input type="file" accept="application/pdf,.pdf,.xlsx,.csv" multiple hidden>
+      </div>
+      <div class="ob-files" id="ob-files-investment"></div>
+    </div>
+    <div data-step="4" hidden>
+      <p id="ob-summary"></p>
+      <div class="ob-files" id="ob-files-all"></div>
+      <p class="sub">Next: open <b>Investments</b> for live prices and P&amp;L, or ask the assistant (bottom-right) anything.</p>
+    </div>
+  </div>
+  <div class="ob-foot">
+    <button class="btn ghost" id="ob-back">Back</button>
+    <button class="btn" id="ob-next">Get started</button>
+  </div>
+</dialog>
+
+<dialog id="modal">
+  <div class="modal-head"><div id="modal-title"></div><button class="icon-btn" id="modal-close" aria-label="Close">✕</button></div>
+  <div class="modal-body" id="modal-body"></div>
+</dialog>
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<!-- Help & resources (static content; buttons use data-go / data-action, wired in app.js) -->
+<template id="help-tpl">
+  <div class="help-modal">
+    <nav class="help-nav" aria-label="Help sections">
+      <button class="chip" data-jump="h-start">Getting started</button>
+      <button class="chip" data-jump="h-features">Features</button>
+      <button class="chip" data-jump="h-docs">Supported documents</button>
+      <button class="chip" data-jump="h-status">Import statuses</button>
+      <button class="chip" data-jump="h-assistant">Assistant</button>
+      <button class="chip" data-jump="h-privacy">Privacy</button>
+      <button class="chip" data-jump="h-resources">Resources</button>
+    </nav>
+
+    <section>
+      <h3 id="h-start">Getting started</h3>
+      <ol class="help-steps">
+        <li><b>Add your documents.</b> Use the guided setup or the <b>Documents</b> tab: bank statement PDFs, holdings statements, P&amp;L reports and broker ledgers. Re-uploading the same file or an overlapping statement won't create duplicates.</li>
+        <li><b>Check the import result.</b> Every import is reconciled against the document's own totals. Anything that doesn't add up is flagged <span class="badge b-warn">! Needs review</span> rather than silently accepted.</li>
+        <li><b>Explore.</b> <b>Overview</b> shows income, spending and savings; <b>Investments</b> values your holdings at live (delayed) prices; <b>Markets</b> shows the NIFTY 50 and FII/DII flows.</li>
+        <li><b>Ask the assistant</b> (bottom-right) anything about your money or a stock. It uses your records and market data, and shows exact figures from your database.</li>
+        <li><b>Turn on alerts</b> in <b>Settings</b> to get a weekly AI portfolio review and big-move alerts, in-app and by email.</li>
+      </ol>
+      <div class="toolbar" style="margin-top:4px">
+        <button class="btn" data-action="setup">Open guided setup</button>
+        <button class="btn ghost" data-action="chat">Open assistant</button>
+      </div>
+    </section>
+
+    <section>
+      <h3 id="h-features">What each tab does</h3>
+      <div class="feature-grid">
+        <div class="feature"><div class="f-head"><span class="f-icon">◎</span>Overview</div>
+          <ul><li>Income, spending and savings rate (own transfers &amp; investments excluded)</li><li>Monthly income vs spending chart</li><li>Spending by category and recurring payments</li><li>Latest weekly AI review</li></ul>
+          <button class="btn ghost sm" data-go="overview">Open</button></div>
+        <div class="feature"><div class="f-head"><span class="f-icon">↗</span>Investments</div>
+          <ul><li>Holdings at live (delayed) prices, today's change, unrealized P&amp;L</li><li>US stocks shown in $ and ₹ at today's rate</li><li>Realised P&amp;L, charges and XIRR from P&amp;L reports</li><li>Broker cash flows, MF orders, quick stock quote</li></ul>
+          <button class="btn ghost sm" data-go="investments">Open</button></div>
+        <div class="feature"><div class="f-head"><span class="f-icon">∿</span>Markets</div>
+          <ul><li>NIFTY 50 chart (1M–5Y) with returns, volatility and 52-week range</li><li>FII &amp; DII net flows, daily or monthly, collected every trading day</li><li>Admins can import older FII/DII history from a CSV</li></ul>
+          <button class="btn ghost sm" data-go="markets">Open</button></div>
+        <div class="feature"><div class="f-head"><span class="f-icon">≡</span>Transactions</div>
+          <ul><li>Search every bank transaction</li><li>Fix a category; optionally apply it to every transaction from that merchant</li><li>"Needs review" filter for uncertain categories</li></ul>
+          <button class="btn ghost sm" data-go="transactions">Open</button></div>
+        <div class="feature"><div class="f-head"><span class="f-icon">⇪</span>Documents</div>
+          <ul><li>Upload PDFs, .xlsx and .csv (several at once)</li><li>"Local only" keeps a PDF out of OpenAI/Pinecone</li><li>Reconciliation checks for every import</li></ul>
+          <button class="btn ghost sm" data-go="documents">Open</button></div>
+        <div class="feature"><div class="f-head"><span class="f-icon">⚙</span>Settings</div>
+          <ul><li>Weekly review, price-move alerts and threshold</li><li>Email delivery to your sign-in address</li><li>Light / dark theme, run setup again</li></ul>
+          <button class="btn ghost sm" data-go="settings">Open</button></div>
+        <div class="feature"><div class="f-head"><span class="f-icon">✦</span>Weekly AI review</div>
+          <ul><li>Every Saturday 09:00 IST (when the scheduler is on), or run it any time</li><li>Per-holding stance, bull/bear cases, risks and scenarios</li><li>Not a buy/sell signal; always check it yourself</li></ul></div>
+        <div class="feature"><div class="f-head"><span class="f-icon">🔔</span>Notifications</div>
+          <ul><li>The bell shows reviews and price-move alerts</li><li>Price checks run after market close, Mon–Fri</li><li>Emails go only to your verified sign-in address</li></ul></div>
+      </div>
+    </section>
+
+    <section>
+      <h3 id="h-docs">Supported documents</h3>
+      <div class="table-wrap"><table>
+        <tr><th>Source</th><th>Document</th><th>Format</th><th>What you get</th></tr>
+        <tr><td>Any bank</td><td>Account statement with date, description, debit, credit and balance columns</td><td>PDF</td><td>Income, spending, categories, recurring payments</td></tr>
+        <tr><td>Groww</td><td>Stocks Holdings Statement</td><td>.xlsx</td><td>Holdings with average cost</td></tr>
+        <tr><td>Groww</td><td>Stocks P&amp;L Report</td><td>.xlsx</td><td>Realised / unrealised P&amp;L, charges, XIRR</td></tr>
+        <tr><td>Groww</td><td>Client Fund Ledger</td><td>.xlsx</td><td>Money added to / withdrawn from the broker</td></tr>
+        <tr><td>Groww</td><td>Mutual fund order history</td><td>.xlsx</td><td>MF purchases and redemptions</td></tr>
+        <tr><td>INDmoney</td><td>Depository (CDSL) holding statement</td><td>PDF</td><td>Indian stock holdings and values</td></tr>
+        <tr><td>INDmoney</td><td>US stocks holdings report</td><td>.xlsx</td><td>US holdings in $ (fractional shares), shown in ₹ too</td></tr>
+        <tr><td>Any source (admins)</td><td>FII/DII history (columns like Date, FII Net, DII Net)</td><td>.csv</td><td>Older flow history on the Markets tab, shared by all users</td></tr>
+      </table></div>
+      <p class="sub">Tip: upload a holdings statement and a P&amp;L report from the <b>same day</b> to get XIRR. Old <code>.xls</code> files: open and re-save as <code>.xlsx</code>. PDFs must be unlocked and text-based (password-protected or scanned PDFs can't be read). Zerodha and bank-specific layouts (HDFC, ICICI, SBI) are next; share a redacted sample to add one.</p>
+    </section>
+
+    <section>
+      <h3 id="h-status">Import statuses</h3>
+      <p class="sub">Each import shows two badges: whether it was saved, and whether its numbers were cross-checked.</p>
+      <div class="legend-list">
+        <span class="badge b-good">✓ Imported</span><span>Saved and ready to use.</span>
+        <span class="badge b-warn">! Needs review</span><span>Saved, but a check failed or some rows were uncertain. The import card lists why.</span>
+        <span class="badge b-neutral">Duplicate</span><span>Already imported; nothing was added twice.</span>
+        <span class="badge b-bad">✕ Unsupported</span><span>Layout not recognised. Uploading the same file again later retries it.</span>
+        <span class="badge b-bad">✕ Failed</span><span>The file couldn't be read (e.g. scanned or password-protected PDF).</span>
+        <span class="badge b-good">✓ Reconciled</span><span>Rows add up to the document's own totals or running balances.</span>
+        <span class="badge b-bad">✕ Mismatch</span><span>Rows disagree with the document's totals. Treat these numbers with care.</span>
+        <span class="badge b-neutral">? Unverifiable</span><span>The file has no totals or balances to check against (e.g. order history).</span>
+      </div>
+    </section>
+
+    <section>
+      <h3 id="h-assistant">Using the assistant</h3>
+      <p>Two modes: <b>Agent with tools</b> answers from your database and live market data (exact numbers). <b>Document search</b> searches the text of PDFs you didn't mark local-only. It keeps the last few messages as context; <b>↺</b> starts fresh. Rate answers with 👍 / 👎 to help improve them.</p>
+      <div class="chips" style="margin-top:8px">
+        <button class="chip" data-ask>What was my savings rate over the last 3 months?</button>
+        <button class="chip" data-ask>Which holding has the biggest unrealized loss?</button>
+        <button class="chip" data-ask>Is my portfolio too concentrated?</button>
+        <button class="chip" data-ask>List my recurring payments and their total per month</button>
+        <button class="chip" data-ask>Analyze TCS's trend over the last year</button>
+      </div>
+      <p class="sub" style="margin-top:10px">Shortcuts: <kbd>?</kbd> opens this help · <kbd>Enter</kbd> sends · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line · <kbd>Esc</kbd> closes panels.</p>
+    </section>
+
+    <section>
+      <h3 id="h-privacy">Privacy &amp; your data</h3>
+      <ul class="sub" style="line-height:1.7;padding-left:18px;margin:6px 0">
+        <li>Numbers live in your own database. Names, PAN and addresses from statements are never stored; account numbers keep only the last 4 digits.</li>
+        <li>Spreadsheets never leave the server. PDFs are sent to OpenAI and Pinecone for chat search unless you tick <b>Local only</b>. For bank statements that aren't local-only, descriptions the built-in rules can't categorise are also sent to OpenAI for a category guess.</li>
+        <li>When you ask the assistant or run a review, the figures needed for the answer are sent to OpenAI.</li>
+        <li>To find bugs and improve answers, the app records usage traces in LangSmith. Assistant chats and reviews are recorded as sent to OpenAI, including the figures they used, with emails, PAN, phone, card and account numbers masked. Uploads and other actions are recorded as timings and outcomes only: no document text, rows or amounts.</li>
+        <li>Market data comes from Yahoo Finance and NSE public pages (unofficial, delayed). Those requests carry only stock symbols, never quantities, values or account details.</li>
+        <li>Anyone can sign in with Google; each account sees only its own data. Emails go only to the Google address you signed in with.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3 id="h-resources">Resources</h3>
+      <div class="resource-list">
+        <a class="resource" href="https://www.nseindia.com/reports/fii-dii" target="_blank" rel="noopener noreferrer"><b>NSE FII/DII data ↗</b><span>Official daily provisional cash-market figures</span></a>
+        <a class="resource" href="https://finance.yahoo.com/quote/%5ENSEI/" target="_blank" rel="noopener noreferrer"><b>NIFTY 50 on Yahoo Finance ↗</b><span>Source of the price data used here</span></a>
+        <a class="resource" href="https://investor.sebi.gov.in/" target="_blank" rel="noopener noreferrer"><b>SEBI investor education ↗</b><span>Regulator's guides on investing and risk</span></a>
+        <a class="resource" href="https://www.amfiindia.com/" target="_blank" rel="noopener noreferrer"><b>AMFI ↗</b><span>Mutual fund NAVs and investor resources</span></a>
+      </div>
+      <p class="sub" style="margin-top:10px">Setup, configuration and troubleshooting: <code>README.md</code> in the project folder.</p>
+    </section>
+
+    <div class="disclaimer">FinSight is a personal analysis tool, not a registered investment adviser. Reviews and answers are informational, can be wrong, and never guarantee returns or exact buy/sell timing. Market data is delayed and unofficial.</div>
+  </div>
+</template>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
