@@ -107,3 +107,53 @@ def test_malformed_documents_are_rejected(raw, message):
 def test_image_only_pdf_is_rejected():
     with pytest.raises(ValueError, match='OCR'):
         extract_pdf_text(make_pdf([[]]))
+
+
+GPAY_PAGE = '''
+                                       Transaction       statement
+                          9790530906,         someone@example.com
+Transaction    statement     period                                       Sent                                       Received
+01 May   2026   - 31  October    2026                                ₹1,050.50                                 ₹90,000.00
+
+Date  & time               Transaction   details                                                                                  Amount
+
+01 May,  2026              Paid to Kisetsu  Saison  Finance  India  Pvt Ltd                                                       ₹1,000
+12:06 AM                   UPI Transaction  ID:612511782906
+                               Paid by HDFC   Bank  6873
+
+12May,   2026              Paid toChai  Corner                                                                                       ₹50.50
+07:18PM                    UPI Transaction  ID: 123023619396
+                               Paid by  HDFC  Bank  6873
+
+23 May,  2026              Received   from  shankar   N                                                                           ₹90,000
+10:14AM                   UPI Transaction  ID: 123561569902
+                               Paid to HDFC  Bank  6873
+
+Note:This statement reflectspayments  made  by you on the Google Pay app.
+'''
+
+
+def test_payment_app_statement_is_parsed_and_reconciled_against_printed_totals():
+    from app.reconciliation import reconcile
+    pages = [GPAY_PAGE]
+    parser = choose_parser(pages)
+    assert parser is not None and parser.name == 'payment_app'
+    parsed = parser.parse(pages)
+    s = parsed.summary
+    assert (s.institution, s.account_identifier) == ('Google Pay', 'XXXX0906')
+    assert (s.period_start, s.period_end) == (date(2026, 5, 1), date(2026, 10, 31))
+    assert (s.total_debits, s.total_credits) == (Decimal('1050.50'), Decimal('90000.00'))
+    got = [(t.transaction_date, t.transaction_type, t.amount, t.description) for t in parsed.transactions]
+    assert got == [
+        (date(2026, 5, 1), 'debit', Decimal('1000.00'), 'UPI/612511782906/Kisetsu Saison Finance India Pvt Ltd'),
+        (date(2026, 5, 12), 'debit', Decimal('50.50'), 'UPI/123023619396/Chai Corner'),
+        (date(2026, 5, 23), 'credit', Decimal('90000.00'), 'UPI/123561569902/shankar N'),
+    ]
+    assert parsed.warnings == []
+    assert reconcile(parsed).status == 'reconciled'  # printed Sent/Received totals match exactly
+
+
+def test_payment_app_totals_mismatch_is_reported_not_hidden():
+    from app.reconciliation import reconcile
+    pages = [GPAY_PAGE.replace('₹1,050.50', '₹9,999.00')]
+    assert reconcile(choose_parser(pages).parse(pages)).status == 'mismatch'

@@ -105,7 +105,7 @@ def reconcile(statement: ParsedStatement) -> ReconciliationResult:
         status = 'unverifiable'
     elif any(c.status == 'fail' for c in checks):
         status = 'mismatch'
-    elif any(c.status == 'pass' for c in checks if c.name in ('balance_equation', 'running_balance')):
+    elif any(c.status == 'pass' for c in checks if c.name != 'duplicate_rows'):  # balances or printed totals
         status = 'reconciled'
     else:
         status = 'unverifiable'
